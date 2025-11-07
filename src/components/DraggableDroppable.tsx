@@ -1,10 +1,11 @@
 /**
- * Combined Draggable and Droppable component
+ * Combined Draggable and Droppable component using @dnd-kit
  */
 
 import { ReactNode, CSSProperties } from 'react';
-import { Draggable } from './Draggable';
-import { Droppable } from './Droppable';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { useCoeliDndContext } from '../context/CoeliDndContext';
 import { DndItem } from '../types';
 
 export interface DraggableDroppableProps {
@@ -26,21 +27,59 @@ export function DraggableDroppable({
   children,
   className = '',
   style = {},
-  dragHandleClassName,
   activeClassName = '',
   invalidClassName = '',
 }: DraggableDroppableProps) {
+  const { canDrop, activeItem } = useCoeliDndContext();
+
+  // Use both draggable and droppable hooks
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: item.id,
+    data: item,
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: item.id,
+    data: item,
+  });
+
+  // Combine refs
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDraggableRef(node);
+    setDroppableRef(node);
+  };
+
+  const isValidDrop = activeItem ? canDrop(item.id) : false;
+
+  let activeClass = '';
+  if (isOver && activeItem) {
+    activeClass = isValidDrop ? activeClassName : invalidClassName;
+  }
+
+  const combinedStyle: CSSProperties = {
+    ...style,
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+  };
+
   return (
-    <Droppable
-      item={item}
-      className={className}
-      style={style}
-      activeClassName={activeClassName}
-      invalidClassName={invalidClassName}
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`coeli-draggable-droppable ${className} ${activeClass}`}
+      style={combinedStyle}
+      data-item-id={item.id}
+      data-item-type={item.type}
     >
-      <Draggable item={item} dragHandleClassName={dragHandleClassName}>
-        {children}
-      </Draggable>
-    </Droppable>
+      {children}
+    </div>
   );
 }

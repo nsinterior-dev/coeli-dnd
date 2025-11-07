@@ -1,9 +1,10 @@
 /**
- * Draggable component wrapper
+ * Draggable component wrapper using @dnd-kit
  */
 
-import React, { ReactNode, useRef, CSSProperties } from 'react';
-import { useCoeliDndContext } from '../context/CoeliDndContext';
+import { ReactNode, CSSProperties } from 'react';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { DndItem } from '../types';
 
 export interface DraggableProps {
@@ -15,43 +16,31 @@ export interface DraggableProps {
 }
 
 /**
- * Makes an item draggable
+ * Makes an item draggable using @dnd-kit
  */
-export function Draggable({ item, children, className = '', style = {}, dragHandleClassName }: DraggableProps) {
-  const { activeItem, handleDragStart } = useCoeliDndContext();
-  const elementRef = useRef<HTMLDivElement>(null);
-
-  const isDragging = activeItem?.id === item.id;
-
-  const onDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    // If drag handle is specified, check if we're dragging from the handle
-    if (dragHandleClassName) {
-      const target = e.target as HTMLElement;
-      const handle = target.closest(`.${dragHandleClassName}`);
-      if (!handle) {
-        e.preventDefault();
-        return;
-      }
-    }
-
-    handleDragStart(item.id);
-
-    // Set drag data
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/json', JSON.stringify(item));
-  };
+export function Draggable({
+  item,
+  children,
+  className = '',
+  style = {},
+}: DraggableProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: item.id,
+    data: item,
+  });
 
   const combinedStyle: CSSProperties = {
     ...style,
+    transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.5 : 1,
-    cursor: 'grab',
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
   return (
     <div
-      ref={elementRef}
-      draggable
-      onDragStart={onDragStart}
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       className={`coeli-draggable ${className}`}
       style={combinedStyle}
       data-item-id={item.id}
