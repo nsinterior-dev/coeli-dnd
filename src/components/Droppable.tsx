@@ -1,8 +1,9 @@
 /**
- * Droppable component wrapper
+ * Droppable component wrapper using @dnd-kit
  */
 
-import React, { ReactNode, useState, CSSProperties } from 'react';
+import { ReactNode, CSSProperties } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { useCoeliDndContext } from '../context/CoeliDndContext';
 import { DndItem } from '../types';
 
@@ -16,7 +17,7 @@ export interface DroppableProps {
 }
 
 /**
- * Makes an area droppable
+ * Makes an area droppable using @dnd-kit
  */
 export function Droppable({
   item,
@@ -26,50 +27,13 @@ export function Droppable({
   activeClassName = '',
   invalidClassName = '',
 }: DroppableProps) {
-  const { handleDragOver, handleDragEnd, canDrop, activeItem } = useCoeliDndContext();
-  const [isOver, setIsOver] = useState(false);
+  const { canDrop, activeItem } = useCoeliDndContext();
+  const { setNodeRef, isOver } = useDroppable({
+    id: item.id,
+    data: item,
+  });
 
   const isValidDrop = activeItem ? canDrop(item.id) : false;
-
-  const onDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsOver(true);
-    handleDragOver(item.id);
-  };
-
-  const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Only set isOver to false if we're leaving the droppable entirely
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-
-    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-      setIsOver(false);
-    }
-  };
-
-  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleDragOver(item.id);
-
-    // Visual feedback for drop validity
-    e.dataTransfer.dropEffect = isValidDrop ? 'move' : 'none';
-  };
-
-  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsOver(false);
-
-    if (!isValidDrop) return;
-
-    handleDragEnd();
-  };
 
   let activeClass = '';
   if (isOver && activeItem) {
@@ -82,10 +46,7 @@ export function Droppable({
 
   return (
     <div
-      onDragEnter={onDragEnter}
-      onDragLeave={onDragLeave}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
+      ref={setNodeRef}
       className={`coeli-droppable ${className} ${activeClass}`}
       style={combinedStyle}
       data-item-id={item.id}
