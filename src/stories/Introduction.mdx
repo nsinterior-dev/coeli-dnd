@@ -1,0 +1,118 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Introduction" />
+
+# coeli-dnd
+
+Welcome to **coeli-dnd** - an improved drag-and-drop library for React and Next.js with advanced nested list support!
+
+## Why coeli-dnd?
+
+Built to solve complex nested drag-and-drop scenarios that are challenging with existing libraries. If you've struggled with nested lists where items and groups coexist in the same array, this library is for you.
+
+## Key Features
+
+- **🎯 Nested Drag & Drop** - Seamlessly handle items and groups in the same array
+- **🔄 6 Core Operations** - Comprehensive support for all drag-and-drop scenarios
+- **📘 Type-safe** - Written in TypeScript with full type definitions
+- **⚡ Lightweight** - No dependencies on other DnD libraries
+- **🎨 Customizable** - Extensive configuration options and callbacks
+- **⚛️ React & Next.js** - Works perfectly with both frameworks
+
+## The 6 Core Operations
+
+1. **Reorder groups** - Move groups around the canvas
+2. **Reorder mixed items** - Drag items/groups in mixed arrays
+3. **Item to group** - Move items from root level into groups
+4. **Item from group** - Move items from groups to root level
+5. **Reorder in group** - Rearrange items within a group
+6. **Item between groups** - Move items from one group to another
+
+## Quick Start
+
+```jsx
+import {
+  CoeliDndProvider,
+  useCoeliDndContext,
+  DraggableDroppable,
+} from 'coeli-dnd';
+
+const items = [
+  { id: '1', label: 'Item 1', type: 'ITEM' },
+  {
+    id: '2',
+    label: 'Group 1',
+    type: 'GROUP',
+    children: [
+      { id: '3', label: 'Item 2', type: 'ITEM', parentId: '2' },
+    ],
+  },
+];
+
+function Canvas() {
+  const { items } = useCoeliDndContext();
+
+  return (
+    <div>
+      {items.map(item => (
+        <DraggableDroppable key={item.id} item={item}>
+          <div>{item.label}</div>
+        </DraggableDroppable>
+      ))}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <CoeliDndProvider initialItems={items}>
+      <Canvas />
+    </CoeliDndProvider>
+  );
+}
+```
+
+## Data Structure
+
+Items and groups share the same structure:
+
+```typescript
+interface DndItem {
+  id: string | number;
+  label: string;
+  type: 'ITEM' | 'GROUP';
+  children?: DndItem[];
+  parentId?: string | number | null;
+  [key: string]: any; // Additional custom properties
+}
+```
+
+## Explore the Examples
+
+Check out the example stories to see coeli-dnd in action:
+
+- **Nested List** - Complete demonstration of all 6 operations
+- **Components** - Individual component examples
+  - Draggable
+  - Droppable
+  - DraggableDroppable
+
+## Installation
+
+```bash
+npm install coeli-dnd
+# or
+yarn add coeli-dnd
+# or
+pnpm add coeli-dnd
+```
+
+## Learn More
+
+- [GitHub Repository](https://github.com/nsinterior-dev/coeli-dnd)
+- [API Documentation](https://github.com/nsinterior-dev/coeli-dnd#api-reference)
+- [Examples](https://github.com/nsinterior-dev/coeli-dnd/tree/main/examples)
+
+---
+
+**Built with ❤️ to solve real-world nested drag-and-drop challenges**
