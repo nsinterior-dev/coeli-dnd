@@ -4,7 +4,6 @@
 
 import { ReactNode, CSSProperties } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { DndItem } from '../types';
 
 export interface DraggableProps {
@@ -24,15 +23,15 @@ export function Draggable({
   className = '',
   style = {},
 }: DraggableProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     data: item,
   });
 
   const combinedStyle: CSSProperties = {
     ...style,
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
+    // Hide the original element when dragging (DragOverlay shows the ghost)
+    opacity: isDragging ? 0.4 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 

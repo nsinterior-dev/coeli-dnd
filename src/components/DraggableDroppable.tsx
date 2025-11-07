@@ -4,7 +4,6 @@
 
 import { ReactNode, CSSProperties } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { useCoeliDndContext } from '../context/CoeliDndContext';
 import { DndItem } from '../types';
 
@@ -37,7 +36,6 @@ export function DraggableDroppable({
     attributes,
     listeners,
     setNodeRef: setDraggableRef,
-    transform,
     isDragging,
   } = useDraggable({
     id: item.id,
@@ -58,14 +56,14 @@ export function DraggableDroppable({
   const isValidDrop = activeItem ? canDrop(item.id) : false;
 
   let activeClass = '';
-  if (isOver && activeItem) {
+  if (isOver && activeItem && activeItem.id !== item.id) {
     activeClass = isValidDrop ? activeClassName : invalidClassName;
   }
 
   const combinedStyle: CSSProperties = {
     ...style,
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
+    // Hide the original element when dragging (DragOverlay shows the ghost)
+    opacity: isDragging ? 0.4 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
