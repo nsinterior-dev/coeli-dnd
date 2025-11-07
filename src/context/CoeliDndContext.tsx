@@ -34,6 +34,7 @@ export function CoeliDndProvider({
       onDragStart={dndState.handleDragStart}
       onDragOver={dndState.handleDragOver}
       onDragEnd={dndState.handleDragEnd}
+      onDragCancel={dndState.handleDragCancel}
     >
       <CoeliDndContext.Provider value={dndState}>
         {children}

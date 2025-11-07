@@ -7,11 +7,13 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
   CollisionDetection,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -39,6 +41,7 @@ export interface UseCoeliDndReturn {
   handleDragStart: (event: DragStartEvent) => void;
   handleDragOver: (event: DragOverEvent) => void;
   handleDragEnd: (event: DragEndEvent) => void;
+  handleDragCancel: () => void;
   setItems: (items: DndItem[]) => void;
   canDrop: (overItemId: string | number) => boolean;
   sensors: ReturnType<typeof useSensors>;
@@ -66,12 +69,19 @@ export function useCoeliDnd(
   const [currentOperation, setCurrentOperation] = useState<DragOperation | null>(null);
 
   const configRef = useRef({ ...defaultConfig, ...config });
+  const lastOverIdRef = useRef<string | number | null>(null);
 
-  // Set up dnd-kit sensors
+  // Set up dnd-kit sensors with better activation constraints
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8, // 8px of movement required before drag starts
+        distance: 10, // 10px of movement required before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // 250ms delay before drag starts on touch
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -92,6 +102,7 @@ export function useCoeliDnd(
 
       setActiveItem(found.item);
       setActivePosition(found.position);
+      lastOverIdRef.current = null;
 
       configRef.current.onDragStart?.(found.item, found.position);
     },
@@ -109,6 +120,10 @@ export function useCoeliDnd(
         setCurrentOperation(null);
         return;
       }
+
+      // Avoid unnecessary re-renders
+      if (lastOverIdRef.current === overItemId) return;
+      lastOverIdRef.current = overItemId;
 
       const found = findItem(items, overItemId);
 
@@ -176,50 +191,48 @@ export function useCoeliDnd(
     [activeItem, activePosition, items]
   );
 
+  const resetState = useCallback(() => {
+    setActiveItem(null);
+    setActivePosition(null);
+    setOverItem(null);
+    setOverPosition(null);
+    setCurrentOperation(null);
+    lastOverIdRef.current = null;
+  }, []);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { over } = event;
 
       if (!activeItem || !activePosition) {
-        // Reset state
-        setActiveItem(null);
-        setActivePosition(null);
-        setOverItem(null);
-        setOverPosition(null);
-        setCurrentOperation(null);
+        resetState();
         return;
       }
 
       if (!over) {
         // Dropped outside valid drop zone
-        setActiveItem(null);
-        setActivePosition(null);
-        setOverItem(null);
-        setOverPosition(null);
-        setCurrentOperation(null);
+        resetState();
         return;
       }
 
       const found = findItem(items, over.id);
       if (!found) {
-        setActiveItem(null);
-        setActivePosition(null);
-        setOverItem(null);
-        setOverPosition(null);
-        setCurrentOperation(null);
+        resetState();
         return;
       }
 
       const foundOverItem = found.item;
       const foundOverPosition = found.position;
 
+      // Check if dropping on itself
+      if (activeItem.id === foundOverItem.id) {
+        resetState();
+        return;
+      }
+
       // Check if drop is valid
       if (!canDropCheck(foundOverItem.id)) {
-        setActiveItem(null);
-        setActivePosition(null);
-        setOverItem(null);
-        setOverPosition(null);
-        setCurrentOperation(null);
+        resetState();
         return;
       }
 
@@ -258,20 +271,33 @@ export function useCoeliDnd(
       configRef.current.onDrop?.(dragEvent, newItems);
 
       // Reset state
-      setActiveItem(null);
-      setActivePosition(null);
-      setOverItem(null);
-      setOverPosition(null);
-      setCurrentOperation(null);
+      resetState();
     },
-    [activeItem, activePosition, items, canDropCheck]
+    [activeItem, activePosition, items, canDropCheck, resetState]
   );
+
+  const handleDragCancel = useCallback(() => {
+    resetState();
+  }, [resetState]);
 
   // Custom collision detection for nested items
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
-      // Use closestCenter as the default collision detection
-      return closestCenter(args);
+      // Start with pointer-based detection for better accuracy
+      const pointerCollisions = pointerWithin(args);
+
+      if (pointerCollisions.length > 0) {
+        return pointerCollisions;
+      }
+
+      // Fall back to rectangle intersection
+      const rectCollisions = rectIntersection(args);
+
+      if (rectCollisions.length > 0) {
+        return rectCollisions;
+      }
+
+      return [];
     },
     []
   );
@@ -286,6 +312,7 @@ export function useCoeliDnd(
     handleDragStart,
     handleDragOver,
     handleDragEnd,
+    handleDragCancel,
     setItems,
     canDrop: canDropCheck,
     sensors,
