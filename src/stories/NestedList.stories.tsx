@@ -42,7 +42,6 @@ function Canvas() {
       <div
         key={item.id}
         style={{
-          marginLeft: level * 20,
           marginBottom: 8,
         }}
       >
@@ -59,19 +58,21 @@ function Canvas() {
             backgroundColor: isGroup ? '#dbeafe' : '#f3f4f6',
             cursor: 'grab',
             transition: 'all 0.2s ease',
+            minHeight: isGroup ? '80px' : '40px',
           }}
         >
           <div style={{ fontWeight: isGroup ? 'bold' : 'normal', userSelect: 'none' }}>
             {isGroup ? '📁' : '📄'} {item.label}
+            {isGroup && ' (Drop items here)'}
           </div>
-
-          {/* Render children if this is a group */}
-          {isGroup && item.children && item.children.length > 0 && (
-            <div style={{ marginTop: 8, marginLeft: 12 }}>
-              {item.children.map(child => renderItem(child, level + 1))}
-            </div>
-          )}
         </DraggableDroppable>
+
+        {/* Render children if this is a group - OUTSIDE the draggable */}
+        {isGroup && item.children && item.children.length > 0 && (
+          <div style={{ marginTop: 8, marginLeft: 20, paddingLeft: 12, borderLeft: '2px solid #d1d5db' }}>
+            {item.children.map(child => renderItem(child, level + 1))}
+          </div>
+        )}
       </div>
     );
   };

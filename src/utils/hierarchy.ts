@@ -70,6 +70,14 @@ export function determineDragOperation(
   const activeParent = activePosition.parentId;
   const overParent = overPosition.parentId;
 
+  // Special case: dropping directly on a group (to add item into it)
+  if (overItem.type === 'GROUP' && activeItem.type === 'ITEM') {
+    // If dropping on a group at the same level, it means we want to put the item INTO the group
+    if (activeLevel === overLevel) {
+      return DragOperation.ITEM_TO_GROUP;
+    }
+  }
+
   // Moving from root to inside a group
   if (activeLevel === 0 && overLevel === 1) {
     return DragOperation.ITEM_TO_GROUP;
@@ -200,7 +208,7 @@ export function flattenItems(items: DndItem[], level: number = 0, parentId: stri
  */
 export function canDrop(
   activeItem: DndItem,
-  _activePosition: ItemPosition,
+  activePosition: ItemPosition,
   overItem: DndItem | null,
   overPosition: ItemPosition | null,
   maxDepth: number = 2,
@@ -216,12 +224,27 @@ export function canDrop(
     return false;
   }
 
-  // Check depth constraints
+  // If dropping on a group, check if we can add items to groups
+  if (overItem.type === 'GROUP' && activeItem.type === 'ITEM') {
+    // The target depth would be inside the group (level + 1)
+    const targetDepth = overPosition.level + 1;
+    if (targetDepth >= maxDepth) return false;
+    return true;
+  }
+
+  // Check depth constraints for regular positioning
   if (overPosition.level >= maxDepth) return false;
 
   // Check if nesting groups is allowed
-  if (!allowNestedGroups && activeItem.type === 'GROUP' && overPosition.level > 0) {
-    return false;
+  if (!allowNestedGroups && activeItem.type === 'GROUP') {
+    // If dropping ON a group, that would nest the group
+    if (overItem.type === 'GROUP' && activePosition.level === overPosition.level) {
+      return false;
+    }
+    // If the target position is inside a group
+    if (overPosition.level > 0) {
+      return false;
+    }
   }
 
   return true;

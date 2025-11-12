@@ -14,6 +14,7 @@ import {
   useSensors,
   pointerWithin,
   rectIntersection,
+  closestCenter,
   CollisionDetection,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -156,6 +157,13 @@ export function useCoeliDnd(
       const found = findItem(items, overItemId);
       if (!found) return false;
 
+      const operation = determineDragOperation(
+        activePosition,
+        found.position,
+        activeItem,
+        found.item
+      );
+
       const basicCheck = canDropUtil(
         activeItem,
         activePosition,
@@ -170,12 +178,7 @@ export function useCoeliDnd(
       // Custom validation
       if (configRef.current.validateDrop) {
         const dragEvent: DragEvent = {
-          operation: determineDragOperation(
-            activePosition,
-            found.position,
-            activeItem,
-            found.item
-          ),
+          operation,
           activeItem,
           overItem: found.item,
           activePosition,
@@ -255,10 +258,29 @@ export function useCoeliDnd(
       let targetIndex = foundOverPosition.index;
       let targetParentId = foundOverPosition.parentId;
 
-      // If dropping into a group, place at the end of the group
+      // Determine if we're in the same container
+      const sameContainer = activePosition.parentId === foundOverPosition.parentId;
+
+      // If dropping into a group (on the group itself, not its children)
       if (operation === DragOperation.ITEM_TO_GROUP && foundOverItem.type === 'GROUP') {
         targetParentId = foundOverItem.id;
         targetIndex = foundOverItem.children?.length || 0;
+      }
+      // If dropping before/after an item in the same container
+      else if (sameContainer) {
+        // If dragging down (positive Y delta), insert after
+        // If dragging up (negative Y delta), insert before
+        if (activePosition.index < targetIndex) {
+          // Dragging down: item will be removed first, so decrease target index
+          targetIndex = Math.max(0, targetIndex);
+        } else {
+          // Dragging up: insert before target
+          targetIndex = targetIndex;
+        }
+      }
+      // Different containers - insert after the target by default
+      else {
+        targetIndex = targetIndex + 1;
       }
 
       // Move the item
@@ -283,10 +305,26 @@ export function useCoeliDnd(
   // Custom collision detection for nested items
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
+      if (!activeItem) {
+        return closestCenter(args);
+      }
+
       // Start with pointer-based detection for better accuracy
       const pointerCollisions = pointerWithin(args);
 
       if (pointerCollisions.length > 0) {
+        // If we have pointer collisions, use closestCenter on those candidates
+        const centerCollisions = closestCenter({
+          ...args,
+          droppableContainers: args.droppableContainers.filter(container =>
+            pointerCollisions.some(collision => collision.id === container.id)
+          ),
+        });
+
+        if (centerCollisions.length > 0) {
+          return centerCollisions;
+        }
+
         return pointerCollisions;
       }
 
@@ -294,12 +332,35 @@ export function useCoeliDnd(
       const rectCollisions = rectIntersection(args);
 
       if (rectCollisions.length > 0) {
-        return rectCollisions;
+        // Prefer items at the same level as the active item
+        const activeLevel = activePosition?.level ?? 0;
+        const sameLevelCollisions = rectCollisions.filter(collision => {
+          const found = findItem(items, collision.id);
+          return found && found.position.level === activeLevel;
+        });
+
+        if (sameLevelCollisions.length > 0) {
+          return closestCenter({
+            ...args,
+            droppableContainers: args.droppableContainers.filter(container =>
+              sameLevelCollisions.some(collision => collision.id === container.id)
+            ),
+          });
+        }
+
+        // Use closestCenter on all rectangle intersections
+        return closestCenter({
+          ...args,
+          droppableContainers: args.droppableContainers.filter(container =>
+            rectCollisions.some(collision => collision.id === container.id)
+          ),
+        });
       }
 
-      return [];
+      // Final fallback to closestCenter on all droppable containers
+      return closestCenter(args);
     },
-    []
+    [activeItem, activePosition, items]
   );
 
   return {
